@@ -5,6 +5,7 @@ from torch import nn
 from pathlib import Path 
 from torchvision import transforms as T
 import pandas as pd 
+import numpy as np
 
 from PIL import Image
 
@@ -15,7 +16,7 @@ class SimpleDataset2D(data.Dataset):
         self,
         path_root,
         item_pointers =[],
-        crawler_ext = 'tif', # other options are ['jpg', 'jpeg', 'png', 'tiff'],
+        crawler_ext = 'jpg', # other options are ['tif', 'jpeg', 'png', 'tiff'],
         transform = None,
         image_resize = None,
         augment_horizontal_flip = False,
@@ -196,3 +197,51 @@ class CheXpert_2_Dataset(SimpleDataset2D):
             target = self.labels.loc[self.labels.index[index], 'Cardiomegaly']
             weights[index] = weight_per_class[target]
         return weights
+
+class ISIC2018_Dataset(SimpleDataset2D):
+    def __init__(self, path_root, transform=None):
+        super().__init__(path_root, transform=transform)
+        self.path_root = Path(path_root)
+        self.labels = pd.read_csv(self.path_root / 'TrainingGroundTruth.csv', index_col='image')
+        self.labels = self.labels.astype(float)
+        self.target_list = []
+        for index, row in self.labels.iterrows():
+            self.target_list.append(np.argmax(row.values))
+        
+    def __len__(self):
+        return len(self.target_list)
+    
+
+    def __getitem__(self, index):
+        image_name = self.labels.index[index]
+        path_item = self.path_root / 'train_data' / f'{image_name}.jpg'
+        img = Image.open(path_item).convert('RGB')
+
+        if self.transform:
+            img = self.transform(img)
+
+        target = self.target_list[index]
+
+        return {'uid': image_name, 'source': img, 'target': target}
+
+    @classmethod
+    def run_item_crawler(cls, path_root, extension, **kwargs):
+        """Overwrite to speed up as paths are determined by .csv file anyway"""
+        return []
+
+    def get_weights(self):
+        n_samples = len(self.target_list)
+
+        class_counts = np.bincount(self.target_list)
+
+        weight_per_class = np.round(n_samples / class_counts, 2)  # 使用总样本数和类别数计算权重
+
+        # 初始化权重列表
+        weights = [0] * n_samples
+        for index in range(n_samples):
+            target = self.target_list[index]  # 获取当前样本的类别索引
+            weights[index] = weight_per_class[target]  # 分配对应类别的权重
+
+        return weights 
+
+
