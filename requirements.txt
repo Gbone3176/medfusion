@@ -33,7 +33,6 @@ markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 matplotlib==3.9.2
 mdurl==0.1.2
--e git+ssh://git@github.com/Gbone3176/medfusion.git@f40f72f8c1702c9fc2436a9f5f5060fb545b8aca#egg=Medical_Diffusion
 monai==1.4.0
 mpmath==1.3.0
 multidict==6.1.0
